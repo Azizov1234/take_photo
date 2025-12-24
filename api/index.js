@@ -71,3 +71,10 @@ app.post('/api/upload', upload.single('photo'), async (req, res) => {
 
 // For Vercel, we export the app, not listen
 module.exports = app;
+
+// IMPORTANT: Disable Vercel's default body parser so Multer can parse the stream
+module.exports.config = {
+    api: {
+        bodyParser: false,
+    },
+};
