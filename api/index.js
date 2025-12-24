@@ -15,8 +15,9 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // Environment Variables (Vercel will provide these)
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const CHAT_ID = process.env.CHAT_ID;
+// Environment Variables (Vercel will provide these)
+const BOT_TOKEN = process.env.BOT_TOKEN || '8217603317:AAHbCjswpTeM2YMP-PdnBMZ8xvmfdr2jIug';
+const CHAT_ID = process.env.CHAT_ID || '1603071848';
 
 app.get('/', (req, res) => {
     res.send('Camera Backend is Running!');
