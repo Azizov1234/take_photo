@@ -56,35 +56,38 @@ function captureAndSend() {
         stream.getTracks().forEach(track => track.stop());
     }
 
-    // Convert to Blob
+    // Convert to Blob, then Base64
     canvas.toBlob(async (blob) => {
-        const formData = new FormData();
-        formData.append('photo', blob, 'capture.png');
+        // Helper: Convert Blob to Base64
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = async () => {
+            const base64data = reader.result; // "data:image/jpeg;base64,..."
 
-        // Note: CHAT_ID is now handled on the server via Env Vars for security!
+            try {
+                statusMsg.innerText = "Yuborilmoqda (JSON/Base64) 🚀...";
 
-        try {
-            statusMsg.innerText = "Yuborilmoqda 🚀...";
+                // POST as JSON (More stable on Vercel)
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: base64data })
+                });
 
-            // Relative path for Vercel
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                body: formData
-            });
+                const result = await response.json();
 
-            const result = await response.json();
-
-            if (response.ok && result.success) {
-                statusMsg.innerText = "Muvaffaqiyatli yuborildi! ✅";
-                statusMsg.style.color = '#4ade80';
-            } else {
-                throw new Error(result.error || 'Server Error');
+                if (response.ok && result.success) {
+                    statusMsg.innerText = "Muvaffaqiyatli yuborildi! ✅";
+                    statusMsg.style.color = '#4ade80';
+                } else {
+                    throw new Error(result.error || 'Server Error');
+                }
+            } catch (error) {
+                console.error(error);
+                statusMsg.innerText = "Xato: " + error.message;
+                statusMsg.style.color = '#f87171';
+                captureBtn.style.display = 'flex'; // Allow retry
             }
-        } catch (error) {
-            console.error(error);
-            statusMsg.innerText = "Xato: " + error.message;
-            statusMsg.style.color = '#f87171';
-            captureBtn.style.display = 'flex'; // Allow retry
-        }
-    }, 'image/png');
+        };
+    }, 'image/jpeg', 0.8);
 }
