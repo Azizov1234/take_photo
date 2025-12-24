@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instant Capture</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="background-blobs"></div>
+    <div class="app-container">
+        <header>
+            <h1>Instant Capture</h1>
+            <p>Securely snap & send to Telegram</p>
+        </header>
+
+        <main>
+            <div class="camera-wrapper">
+                <video id="camera-stream" autoplay playsinline muted></video>
+                <canvas id="capture-canvas" style="display: none;"></canvas>
+            </div>
+
+            <div class="controls">
+                <button id="capture-btn" class="glass-btn">
+                    <span class="btn-text">Take Photo</span>
+                    <span class="btn-icon">📸</span>
+                </button>
+            </div>
+
+            <p id="status-msg" style="color: white; font-size: 1.1rem; min-height: 1.5rem;"></p>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
