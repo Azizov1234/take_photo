@@ -20,13 +20,19 @@ const BOT_TOKEN = process.env.BOT_TOKEN || '8217603317:AAHbCjswpTeM2YMP-PdnBMZ8x
 const CHAT_ID = process.env.CHAT_ID || '1603071848';
 
 app.get('/', (req, res) => {
-    res.send('Camera Backend is Running!');
+    res.send('Camera Backend is Running! (V2)');
 });
 
-app.post('/api/upload', upload.single('photo'), async (req, res) => {
+// Match any path starting with /api/upload (or just /api/upload) to be safe
+app.post('*', upload.single('photo'), async (req, res) => {
+    // Basic verification that it's an upload request
+    if (!req.path.includes('upload')) {
+        return res.status(404).send('Not Found');
+    }
+
     try {
         if (!req.file) {
-            return res.status(400).json({ error: 'No file uploaded' });
+            return res.status(400).json({ error: 'No file uploaded (Check body parser config)' });
         }
 
         // Use Env Var CHAT_ID by default, or fallback if testing locally with env vars
@@ -56,7 +62,7 @@ app.post('/api/upload', upload.single('photo'), async (req, res) => {
             }
         );
 
-        res.json({ success: true, telegram_data: telegramResponse.data });
+        res.status(200).json({ success: true, telegram_data: telegramResponse.data });
 
     } catch (error) {
         console.error('Error sending to Telegram:', error.response ? error.response.data : error.message);
